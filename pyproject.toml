@@ -1,0 +1,22 @@
+[project]
+name = "pretix-cz-banktransfer"
+dynamic = ["version"]
+description = "Czech domestic bank transfers for pretix"
+requires-python = ">=3.11"
+dependencies = ["pretix>=2026.6.0.dev0", "qrcode"]
+
+[project.entry-points."pretix.plugin"]
+pretix_cz_banktransfer = "pretix_cz_banktransfer:PretixPluginMeta"
+
+[build-system]
+requires = ["setuptools", "pretix-plugin-build"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "pretix_cz_banktransfer.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["pretix_cz_banktransfer*"]

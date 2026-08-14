@@ -1,0 +1,2 @@
+recursive-include pretix_cz_banktransfer/templates *
+recursive-include pretix_cz_banktransfer/locale *

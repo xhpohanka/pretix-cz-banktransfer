@@ -1,0 +1,9 @@
+{% load i18n money %}
+<p>{% trans "After completing your purchase, please transfer the amount to this Czech bank account." %}</p>
+<dl class="dl-horizontal">
+    <dt>{% trans "Account number" %}:</dt><dd>{{ domestic_account }}</dd>
+    {% if amount is not None %}<dt>{% trans "Amount" %}:</dt><dd>{{ amount|money:event.currency }}</dd>{% endif %}
+    {% if recipient_name %}<dt>{% trans "Recipient" %}:</dt><dd>{{ recipient_name }}</dd>{% endif %}
+    {% if variable_symbol %}<dt>{% trans "Variable symbol" %}:</dt><dd><strong>{{ variable_symbol }}</strong></dd>{% endif %}
+</dl>
+{% if not variable_symbol %}<p><strong>{% trans "Your variable symbol will be assigned after the order is completed." %}</strong></p>{% endif %}

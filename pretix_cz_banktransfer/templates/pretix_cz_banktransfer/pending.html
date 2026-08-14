@@ -1,0 +1,18 @@
+{% load i18n money rich_text %}
+<p>{% trans "Please transfer the full amount to the following bank account:" %}</p>
+<div class="row">
+    <div class="col-md-7 col-xs-12">
+        <dl class="dl-horizontal">
+            <dt>{% trans "Account number" %}:</dt><dd><strong>{{ domestic_account }}</strong></dd>
+            <dt>{% trans "Amount" %}:</dt><dd>{{ amount|money:event.currency }}</dd>
+            <dt>{% trans "Variable symbol" %}:</dt><dd><strong>{{ variable_symbol }}</strong></dd>
+            {% if recipient_name %}<dt>{% trans "Recipient" %}:</dt><dd>{{ recipient_name }}</dd>{% endif %}
+        </dl>
+        {% if instructions %}{{ instructions|rich_text }}{% endif %}
+        <p>{% blocktrans with expires=order.expires|date:"SHORT_DATETIME_FORMAT" %}Please send the payment no later than {{ expires }}.{% endblocktrans %}</p>
+        <p class="text-muted">{% trans "We will send you an email as soon as we received your payment." %}</p>
+    </div>
+    <div class="col-md-5 col-xs-12 text-center">
+        <img src="{{ qr_code }}" width="256" height="256" alt="{% trans 'QR payment code' %}">
+    </div>
+</div>

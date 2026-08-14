@@ -1,0 +1,106 @@
+# Czech translation for pretix-cz-banktransfer.
+msgid ""
+msgstr ""
+"Project-Id-Version: pretix-cz-banktransfer 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-14 14:03+0200\n"
+"PO-Revision-Date: 2026-08-14 14:10+0200\n"
+"Language-Team: Czech\n"
+"Language: cs\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n == 1 && n % 1 == 0) ? 0 : (n >= 2 && n "
+"<= 4 && n % 1 == 0) ? 1: (n % 1 != 0 ) ? 2 : 3;\n"
+#: apps.py:13 apps.py:22
+msgid "Czech bank transfer"
+msgstr "Bankovní převod (CZ)"
+
+#: apps.py:15
+msgid "Accept CZK payments to a Czech bank account with a variable symbol and QR Platba."
+msgstr "Přijímejte platby v CZK na český bankovní účet s variabilním symbolem a QR Platbou."
+
+#: apps.py:22
+msgid "Payment"
+msgstr "Platba"
+
+#: payment.py:21
+msgid "Bankovní převod (CZ)"
+msgstr "Bankovní převod (CZ)"
+
+#: payment.py:33
+msgid "Domestic account number"
+msgstr "Tuzemské číslo účtu"
+
+#: payment.py:34
+msgid "Bank code"
+msgstr "Kód banky"
+
+#: payment.py:35
+msgid "IBAN"
+msgstr "IBAN"
+
+#: payment.py:36
+msgid "Account holder / recipient name"
+msgstr "Majitel účtu / příjemce"
+
+#: payment.py:39
+msgid "Variable symbol prefix"
+msgstr "Prefix variabilního symbolu"
+
+#: payment.py:41
+msgid "Optional organizer or event prefix of up to six digits. The remaining digits are allocated automatically."
+msgstr "Volitelný prefix organizátora nebo události o délce nejvýše šesti číslic. Zbývající číslice se přidělují automaticky."
+
+#: payment.py:47
+msgid "Additional payment instructions"
+msgstr "Doplňující platební instrukce"
+
+#: payment.py:56
+msgid "Enter a Czech account number using digits and an optional hyphen."
+msgstr "Zadejte české číslo účtu pomocí číslic a volitelné pomlčky."
+
+#: payment.py:111 templates/pretix_cz_banktransfer/pending.html:2
+msgid "Please transfer the full amount to the following bank account:"
+msgstr "Převeďte prosím celou částku na následující bankovní účet:"
+
+#: payment.py:112 templates/pretix_cz_banktransfer/checkout_payment_form.html:4
+#: templates/pretix_cz_banktransfer/pending.html:6
+msgid "Account number"
+msgstr "Číslo účtu"
+
+#: payment.py:113 templates/pretix_cz_banktransfer/checkout_payment_form.html:5
+#: templates/pretix_cz_banktransfer/pending.html:7
+msgid "Amount"
+msgstr "Částka"
+
+#: payment.py:114 templates/pretix_cz_banktransfer/checkout_payment_form.html:7
+#: templates/pretix_cz_banktransfer/pending.html:8
+msgid "Variable symbol"
+msgstr "Variabilní symbol"
+
+#: payment.py:117 templates/pretix_cz_banktransfer/checkout_payment_form.html:6
+#: templates/pretix_cz_banktransfer/pending.html:9
+msgid "Recipient"
+msgstr "Příjemce"
+
+#: templates/pretix_cz_banktransfer/checkout_payment_form.html:2
+msgid "After completing your purchase, please transfer the amount to this Czech bank account."
+msgstr "Po dokončení objednávky převeďte částku na tento český bankovní účet."
+
+#: templates/pretix_cz_banktransfer/checkout_payment_form.html:9
+msgid "Your variable symbol will be assigned after the order is completed."
+msgstr "Variabilní symbol vám přidělíme po dokončení objednávky."
+
+#: templates/pretix_cz_banktransfer/pending.html:12
+#, python-format
+msgid "Please send the payment no later than %(expires)s."
+msgstr "Platbu prosím odešlete nejpozději do %(expires)s."
+
+#: templates/pretix_cz_banktransfer/pending.html:13
+msgid "We will send you an email as soon as we received your payment."
+msgstr "Jakmile platbu obdržíme, pošleme vám e-mail."
+
+#: templates/pretix_cz_banktransfer/pending.html:16
+msgid "QR payment code"
+msgstr "QR kód pro platbu"
