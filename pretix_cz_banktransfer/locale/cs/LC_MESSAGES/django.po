@@ -32,6 +32,26 @@ msgstr "Bankovní převod (CZ)"
 msgid "Domestic account number"
 msgstr "Tuzemské číslo účtu"
 
+#: forms.py
+msgid "Enable Czech bank transfer by default"
+msgstr "Ve výchozím nastavení povolit český bankovní převod"
+
+#: forms.py
+msgid "This field is required when Czech bank transfer is enabled."
+msgstr "Toto pole je povinné, pokud je český bankovní převod povolen."
+
+#: views.py
+msgid "Your changes have been saved."
+msgstr "Změny byly uloženy."
+
+#: views.py
+msgid "We could not save your changes. See below for details."
+msgstr "Změny se nepodařilo uložit. Podrobnosti najdete níže."
+
+#: templates/pretix_cz_banktransfer/organizer_settings.html
+msgid "Save"
+msgstr "Uložit"
+
 #: payment.py:34
 msgid "Bank code"
 msgstr "Kód banky"

@@ -1,9 +1,12 @@
 import re
 
 from django.dispatch import receiver
+from django.urls import resolve, reverse
+from django.utils.translation import gettext_lazy as _
 
 from pretix.base.models import OrderPayment
 from pretix.base.signals import register_payment_providers
+from pretix.control.signals import nav_organizer
 from pretix.plugins.banktransfer.signals import resolve_transaction
 
 from .models import CzechBankTransferReference
@@ -24,6 +27,25 @@ def extract_variable_symbol(reference):
 @receiver(register_payment_providers, dispatch_uid="payment_czbanktransfer")
 def register_payment_provider(sender, **kwargs):
     return CzechBankTransfer
+
+
+@receiver(nav_organizer, dispatch_uid="czbanktransfer_nav_organizer")
+def nav_organizer_settings(sender, request, organizer, **kwargs):
+    if not request.user.has_organizer_permission(
+        organizer, "organizer.settings.general:write", request=request
+    ):
+        return []
+
+    url = resolve(request.path_info)
+    return [{
+        "label": _("Czech bank transfer"),
+        "url": reverse(
+            "plugins:pretix_cz_banktransfer:settings",
+            kwargs={"organizer": organizer.slug},
+        ),
+        "parent": reverse("control:organizer.edit", kwargs={"organizer": organizer.slug}),
+        "active": url.namespace == "plugins:pretix_cz_banktransfer" and url.url_name == "settings",
+    }]
 
 
 @receiver(resolve_transaction, dispatch_uid="czbanktransfer_resolve_transaction")
