@@ -8,6 +8,7 @@ from django.dispatch import receiver
 from django.urls import resolve, reverse
 from django.utils.translation import gettext, gettext_lazy as _
 
+from pretix.base.i18n import language
 from pretix.base.models import OrderPayment
 from pretix.base.signals import email_filter, register_payment_providers
 from pretix.control.signals import nav_organizer
@@ -103,7 +104,7 @@ def _related_multipart(message):
     return None
 
 
-def _insert_qr_into_html(html, cid, variable_symbol, caption):
+def _insert_qr_into_html(html, cid, variable_symbol, caption, alt):
     """
     Puts the code directly after whatever block mentions the variable symbol -
     i.e. right below the payment instructions this plugin rendered - rather than
@@ -115,7 +116,9 @@ def _insert_qr_into_html(html, cid, variable_symbol, caption):
     holder = soup.new_tag("p")
     holder.append(soup.new_string(caption + " "))
     img = soup.new_tag("img", src="cid:%s" % cid, width=str(QR_MAIL_WIDTH))
-    img["alt"] = caption
+    # Must not repeat the caption: a client that blocks images falls back to the
+    # alt text, and the two together then read as the same sentence twice.
+    img["alt"] = alt
     holder.append(img)
 
     text_node = soup.find(string=lambda s: variable_symbol in s)
@@ -168,7 +171,14 @@ def add_qr_code_to_payment_mail(sender, message, order=None, **kwargs):
             return message
 
         png = spd_qr_png(payload)
-        caption = gettext("Scan to pay:")
+        # email_filter is not sent inside a language() context, unlike the
+        # ticket/ical attachment steps just above it in mail_send_task - so
+        # without this the caption comes out in whatever locale the worker
+        # happens to be in (English) while the rest of the mail is the
+        # customer's own.
+        with language(order.locale, sender.settings.region):
+            caption = gettext("Scan to pay:")
+            alt = gettext("QR payment code")
         cid = "czbanktransfer-qr"
 
         related = _related_multipart(message)
@@ -187,7 +197,7 @@ def add_qr_code_to_payment_mail(sender, message, order=None, **kwargs):
 
         charset = html_part.get_content_charset() or settings.DEFAULT_CHARSET
         html = _insert_qr_into_html(
-            html_part.get_payload(decode=True).decode(charset), cid, variable_symbol, caption,
+            html_part.get_payload(decode=True).decode(charset), cid, variable_symbol, caption, alt,
         )
         if html is None:
             message.attach("qr-platba.png", png, "image/png")

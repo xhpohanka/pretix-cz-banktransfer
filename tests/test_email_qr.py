@@ -2,7 +2,9 @@ from decimal import Decimal
 
 import pytest
 from django.conf import settings
+from bs4 import BeautifulSoup
 from django.core.mail import EmailMultiAlternatives, SafeMIMEMultipart, SafeMIMEText
+from django.utils import translation
 
 from pretix.base.models import OrderPayment
 
@@ -69,6 +71,57 @@ def test_qr_is_embedded_next_to_the_payment_instructions(cz_env):
     assert image.get_content_type() == "image/png"
     assert image["Content-ID"] == "<czbanktransfer-qr>"
     assert image.get_payload(decode=True)[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+@pytest.mark.django_db
+def test_caption_and_alt_text_do_not_repeat_each_other(cz_env):
+    """
+    A client that blocks images falls back to the alt text, so a caption and an
+    alt saying the same thing read as the sentence twice over.
+    """
+    organizer, event, make_order = cz_env
+    _settings(event)
+    order = make_order("FFFFF")
+    _pending_payment(order)
+    vs = get_or_create_reference(order).variable_symbol
+
+    message = add_qr_code_to_payment_mail(
+        event,
+        message=_message(body=f"Variable symbol: {vs}", html=f"<html><body><p>{vs}</p></body></html>"),
+        order=order,
+    )
+    html = _parts(message)[0].get_payload(decode=True).decode(settings.DEFAULT_CHARSET)
+    soup = BeautifulSoup(html, "lxml")
+    img = soup.find("img")
+    caption = img.parent.get_text().replace(img.get("alt", ""), "").strip()
+    assert caption
+    assert img["alt"] != caption
+
+
+@pytest.mark.django_db
+def test_caption_follows_the_customers_language(cz_env):
+    """
+    email_filter is not sent inside a language() context, so without asking for
+    the order's locale explicitly the caption comes out in whatever language the
+    worker happens to be in while the rest of the mail is Czech.
+    """
+    organizer, event, make_order = cz_env
+    _settings(event)
+    order = make_order("GGGGG")
+    order.locale = "cs"
+    order.save()
+    _pending_payment(order)
+    vs = get_or_create_reference(order).variable_symbol
+
+    with translation.override("en"):
+        message = add_qr_code_to_payment_mail(
+            event,
+            message=_message(body=f"Variable symbol: {vs}", html=f"<html><body><p>{vs}</p></body></html>"),
+            order=order,
+        )
+    html = _parts(message)[0].get_payload(decode=True).decode(settings.DEFAULT_CHARSET)
+    assert "Naskenujte" in html
+    assert "Scan to pay" not in html
 
 
 @pytest.mark.django_db
