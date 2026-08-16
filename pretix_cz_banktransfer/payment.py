@@ -9,11 +9,12 @@ from i18nfield.strings import LazyI18nString
 from localflavor.generic.forms import IBANFormField
 
 from pretix.base.forms import I18nMarkdownTextarea
+from pretix.base.models import OrderPayment
 from pretix.base.templatetags.money import money_filter
 from pretix.plugins.banktransfer.payment import BankTransfer
 
 from .reference import get_or_create_reference
-from .spd import generate_spd, spd_qr_data_uri
+from .spd import generate_spd, normalize_iban, spd_qr_data_uri
 
 
 class CzechBankTransfer(BankTransfer):
@@ -70,15 +71,48 @@ class CzechBankTransfer(BankTransfer):
         )
         return super().payment_prepare(request, payment)
 
-    def _context(self, payment):
+    def _spd_payload(self, payment):
+        """
+        The SPAYD string a Czech banking app scans, plus the variable symbol it
+        carries. Separate from _context() so callers that don't need a rendered
+        QR image don't pay for one - see api_payment_details().
+        """
         variable_symbol = self._code(payment.order, force=True)
-        payload = generate_spd(
+        return variable_symbol, generate_spd(
             self.settings.iban,
             payment.amount,
             self.event.currency,
             variable_symbol,
             message=payment.order.full_code,
         )
+
+    def api_payment_details(self, payment: OrderPayment):
+        """
+        Exposed as the payment's ``details`` in the REST API, so a terminal that
+        talks to the API and never renders a pretix template - the point-of-sale
+        plugin - can show a customer the same QR code and account details this
+        provider puts on the order page, without reimplementing SPAYD generation
+        or allocating variable symbols of its own.
+        """
+        variable_symbol, payload = self._spd_payload(payment)
+        details = {
+            "variable_symbol": variable_symbol,
+            "domestic_account": f"{self.settings.domestic_account_number}/{self.settings.bank_code}",
+            "iban": normalize_iban(self.settings.iban),
+            "recipient_name": self.settings.recipient_name,
+            "spd": payload,
+        }
+        # Only for a payment somebody might still pay. Every order fetched
+        # through the API serializes all of its payments, including whole
+        # search-result lists, and rendering a QR image for long-settled
+        # payments would put that cost on every one of those requests for
+        # something nobody will scan.
+        if payment.state in (OrderPayment.PAYMENT_STATE_CREATED, OrderPayment.PAYMENT_STATE_PENDING):
+            details["qr_code"] = spd_qr_data_uri(payload)
+        return details
+
+    def _context(self, payment):
+        variable_symbol, payload = self._spd_payload(payment)
         return {
             "event": self.event,
             "order": payment.order,
