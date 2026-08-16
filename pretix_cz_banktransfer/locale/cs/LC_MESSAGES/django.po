@@ -124,3 +124,7 @@ msgstr "Jakmile platbu obdržíme, pošleme vám e-mail."
 #: templates/pretix_cz_banktransfer/pending.html:16
 msgid "QR payment code"
 msgstr "QR kód pro platbu"
+
+#: signals.py
+msgid "Scan to pay:"
+msgstr "Naskenujte pro platbu:"

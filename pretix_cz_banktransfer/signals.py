@@ -1,16 +1,23 @@
+import logging
 import re
+from email.mime.image import MIMEImage
 
+from django.conf import settings
+from django.core.mail import SafeMIMEText
 from django.dispatch import receiver
 from django.urls import resolve, reverse
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext, gettext_lazy as _
 
 from pretix.base.models import OrderPayment
-from pretix.base.signals import register_payment_providers
+from pretix.base.signals import email_filter, register_payment_providers
 from pretix.control.signals import nav_organizer
 from pretix.plugins.banktransfer.signals import resolve_transaction
 
 from .models import CzechBankTransferReference
 from .payment import CzechBankTransfer
+from .spd import spd_qr_png
+
+logger = logging.getLogger(__name__)
 
 
 VS_PATTERNS = (
@@ -65,3 +72,135 @@ def resolve_czech_transaction(sender, transaction, organizer, event=None, refere
         provider=CzechBankTransfer.identifier,
         state__in=(OrderPayment.PAYMENT_STATE_CREATED, OrderPayment.PAYMENT_STATE_PENDING),
     ).order_by("-local_id").first()
+
+
+# Height in CSS pixels the code is rendered at in the mail. spd_qr_png()'s own
+# default produces a somewhat larger bitmap on purpose, so the image still looks
+# sharp on a high-density phone screen while occupying this much of the layout.
+QR_MAIL_WIDTH = 246
+
+
+def _payment_awaiting_transfer(order):
+    return order.payments.filter(
+        provider=CzechBankTransfer.identifier,
+        state__in=(OrderPayment.PAYMENT_STATE_CREATED, OrderPayment.PAYMENT_STATE_PENDING),
+    ).order_by("-local_id").first()
+
+
+def _related_multipart(message):
+    """
+    The multipart/related container pretix builds for the HTML alternative (see
+    mail_send_task) - that's where an inline image has to live for a mail client
+    to resolve a cid: reference to it.
+    """
+    for alternative in getattr(message, "alternatives", None) or []:
+        # Django 5.2 made alternatives a namedtuple; older versions use a plain
+        # (content, mimetype) tuple.
+        content = getattr(alternative, "content", None) or alternative[0]
+        mimetype = getattr(alternative, "mimetype", None) or alternative[1]
+        if mimetype == "multipart/related" and hasattr(content, "get_payload"):
+            return content
+    return None
+
+
+def _insert_qr_into_html(html, cid, variable_symbol, caption):
+    """
+    Puts the code directly after whatever block mentions the variable symbol -
+    i.e. right below the payment instructions this plugin rendered - rather than
+    at the end of the message, where it would land under the footer.
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "lxml")
+    holder = soup.new_tag("p")
+    holder.append(soup.new_string(caption + " "))
+    img = soup.new_tag("img", src="cid:%s" % cid, width=str(QR_MAIL_WIDTH))
+    img["alt"] = caption
+    holder.append(img)
+
+    text_node = soup.find(string=lambda s: variable_symbol in s)
+    anchor = text_node.find_parent(["p", "td", "li", "div"]) if text_node else None
+    if anchor is not None:
+        anchor.insert_after(holder)
+    elif soup.body is not None:
+        soup.body.append(holder)
+    else:
+        return None
+    return str(soup)
+
+
+@receiver(email_filter, dispatch_uid="czbanktransfer_email_qr")
+def add_qr_code_to_payment_mail(sender, message, order=None, **kwargs):
+    """
+    Puts the scannable code next to the account details in the mail that asks
+    the customer to pay.
+
+    It can't be added where those details are actually produced
+    (order_pending_mail_render): pretix sanitises mail markdown with an allowlist
+    that contains neither the img tag nor the data: protocol, so an image written
+    there is stripped before it ever reaches a message. By this point the message
+    is fully assembled, so the image is attached to its multipart/related part
+    and referenced by content ID - the same shape core produces for images that
+    were in the HTML from the start.
+
+    Deliberately never lets a failure here stop a mail: payment instructions
+    without a QR code are still perfectly usable, instructions that never arrive
+    are not.
+    """
+    if order is None:
+        return message
+
+    try:
+        payment = _payment_awaiting_transfer(order)
+        if payment is None:
+            return message
+
+        provider = payment.payment_provider
+        if not isinstance(provider, CzechBankTransfer):
+            return message
+        variable_symbol, payload = provider._spd_payload(payment)
+
+        # Every mail for this order passes through here, most of which have
+        # nothing to do with paying (order changed, ticket ready, ...). The
+        # variable symbol appearing in the body is what identifies the one that
+        # carries the instructions this code belongs to.
+        if variable_symbol not in (message.body or ""):
+            return message
+
+        png = spd_qr_png(payload)
+        caption = gettext("Scan to pay:")
+        cid = "czbanktransfer-qr"
+
+        related = _related_multipart(message)
+        html_part = None
+        if related is not None:
+            for part in related.get_payload():
+                if part.get_content_type() == "text/html":
+                    html_part = part
+                    break
+
+        if html_part is None:
+            # A plain-text-only event has no HTML part to embed into, so the
+            # customer gets the code as a file instead of not at all.
+            message.attach("qr-platba.png", png, "image/png")
+            return message
+
+        charset = html_part.get_content_charset() or settings.DEFAULT_CHARSET
+        html = _insert_qr_into_html(
+            html_part.get_payload(decode=True).decode(charset), cid, variable_symbol, caption,
+        )
+        if html is None:
+            message.attach("qr-platba.png", png, "image/png")
+            return message
+
+        parts = related.get_payload()
+        parts[parts.index(html_part)] = SafeMIMEText(html, "html", charset)
+
+        image = MIMEImage(png, _subtype="png")
+        image.add_header("Content-ID", "<%s>" % cid)
+        image.add_header("Content-Disposition", "inline", filename="qr-platba.png")
+        related.attach(image)
+    except Exception:
+        logger.exception("Could not add a payment QR code to an outgoing mail")
+
+    return message

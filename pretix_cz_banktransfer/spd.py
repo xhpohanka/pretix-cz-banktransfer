@@ -30,10 +30,28 @@ def generate_spd(
     return "*".join(fields)
 
 
-def spd_qr_data_uri(payload: str) -> str:
-    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=4)
+def _qr(payload: str, box_size: int = 10):
+    qr = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M, border=4, box_size=box_size,
+    )
     qr.add_data(payload)
     qr.make(fit=True)
+    return qr
+
+
+def spd_qr_data_uri(payload: str) -> str:
     output = io.BytesIO()
-    qr.make_image(image_factory=qrcode.image.svg.SvgPathImage).save(output)
+    _qr(payload).make_image(image_factory=qrcode.image.svg.SvgPathImage).save(output)
     return "data:image/svg+xml;base64," + base64.b64encode(output.getvalue()).decode("ascii")
+
+
+def spd_qr_png(payload: str, box_size: int = 6) -> bytes:
+    """
+    PNG rather than the SVG used on web pages: email clients have effectively no
+    SVG support, so a mail has to carry a raster image. box_size is pixels per QR
+    module - the default keeps a typical Czech payment code around 250-300px,
+    big enough to scan off a phone screen without bloating the message.
+    """
+    output = io.BytesIO()
+    _qr(payload, box_size=box_size).make_image(fill_color="black", back_color="white").save(output, format="PNG")
+    return output.getvalue()
