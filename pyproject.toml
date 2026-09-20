@@ -2,6 +2,7 @@
 name = "pretix-cz-banktransfer"
 dynamic = ["version"]
 description = "Czech domestic bank transfers for pretix"
+license = "Apache-2.0"
 requires-python = ">=3.11"
 dependencies = ["pretix>=2026.6.0.dev0", "qrcode"]
 
