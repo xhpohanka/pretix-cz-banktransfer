@@ -9,6 +9,9 @@ dependencies = ["pretix>=2026.6.0.dev0", "qrcode"]
 [project.entry-points."pretix.plugin"]
 pretix_cz_banktransfer = "pretix_cz_banktransfer:PretixPluginMeta"
 
+[project.urls]
+Homepage = "https://github.com/xhpohanka/pretix-cz-banktransfer"
+
 [build-system]
 requires = ["setuptools", "pretix-plugin-build"]
 build-backend = "setuptools.build_meta"
